@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Hand AR Effect</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    background: #000; height: 100%; font-family: sans-serif;
+  }
+  #wrap { position: relative; width: 100vw; height: 100vh; }
+  video { display: none; }
+  canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    transform: scaleX(-1); /* mirror biar kaya kaca */
+  }
+  #status {
+    position: absolute; top: 10px; left: 10px;
+    color: #0f0; font-size: 13px; background: rgba(0,0,0,.5);
+    padding: 6px 10px; border-radius: 6px; z-index: 10;
+  }
+  #hint {
+    position: absolute; bottom: 14px; width: 100%;
+    text-align: center; color: #aaa; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <video id="video" playsinline></video>
+  <canvas id="canvas"></canvas>
+  <div id="status">Memuat model tangan...</div>
+  <div id="hint">Kepal tanganmu untuk memicu efek ✋ → ✊</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script>
+const videoEl = document.getElementById('video');
+const canvasEl = document.getElementById('canvas');
+const ctx = canvasEl.getContext('2d');
+const statusEl = document.getElementById('status');
+
+function resize() {
+  canvasEl.width = window.innerWidth;
+  canvasEl.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- particle system ---
+class Particle {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * 3 + 1;
+    this.vx = Math.cos(a) * s;
+    this.vy = Math.sin(a) * s;
+    this.life = 1;
+    this.size = Math.random() * 6 + 2;
+    this.hue = 190 + Math.random() * 60; // biru-ungu
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy -= 0.03; // sedikit naik, kaya asap
+    this.life -= 0.015;
+  }
+  draw(ctx) {
+    ctx.globalAlpha = Math.max(this.life, 0);
+    ctx.fillStyle = `hsl(${this.hue}, 90%, 65%)`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+let particles = [];
+let handClosed = false;
+let handPos = null;
+
+function isFist(landmarks) {
+  // bandingkan ujung jari (tip) vs sendi tengah (pip) -> kalau tip lebih rendah dari pip = jari nekuk
+  const tips = [8, 12, 16, 20];
+  const pips = [6, 10, 14, 18];
+  let curled = 0;
+  for (let i = 0; i < tips.length; i++) {
+    if (landmarks[tips[i]].y > landmarks[pips[i]].y) curled++;
+  }
+  return curled >= 3;
+}
+
+function drawWireBox(cx, cy, size) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1;
+  const half = size / 2;
+  const top = [cx, cy - size * 1.1];
+  const pts = [
+    [cx - half, cy - half], [cx + half, cy - half],
+    [cx + half, cy + half], [cx - half, cy + half],
+  ];
+  // garis dasar
+  ctx.beginPath();
+  pts.forEach((p, i) => i === 0 ? ctx.moveTo(...p) : ctx.lineTo(...p));
+  ctx.closePath(); ctx.stroke();
+  // garis ke puncak
+  pts.forEach(p => {
+    ctx.beginPath();
+    ctx.moveTo(...p);
+    ctx.lineTo(...top);
+    ctx.stroke();
+  });
+  // titik-titik
+  ctx.fillStyle = '#fff';
+  [...pts, top].forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p[0], p[1], 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function onResults(results) {
+  ctx.save();
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  ctx.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height);
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const lm = results.multiHandLandmarks[0];
+    const wrist = lm[0];
+    const x = wrist.x * canvasEl.width;
+    const y = wrist.y * canvasEl.height;
+    handPos = { x, y };
+    handClosed = isFist(lm);
+
+    drawWireBox(x, y, 110);
+
+    if (handClosed) {
+      for (let i = 0; i < 4; i++) particles.push(new Particle(x, y));
+      statusEl.textContent = 'Tangan mengepal — efek aktif ✊';
+    } else {
+      statusEl.textContent = 'Tangan terdeteksi ✋';
+    }
+  } else {
+    statusEl.textContent = 'Tunjukkan tanganmu ke kamera';
+  }
+
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => { p.update(); p.draw(ctx); });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+const hands = new Hands({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6
+});
+hands.onResults(onResults);
+
+const camera = new Camera(videoEl, {
+  onFrame: async () => { await hands.send({ image: videoEl }); },
+  width: 640,
+  height: 480
+});
+camera.start().catch(err => {
+  statusEl.textContent = 'Gagal akses kamera: ' + err.message;
+});
+</script>
+</body>
+</html>
