@@ -16,27 +16,37 @@
       width: 100vw; height: 100vh;
       background: #0a0a12;
     }
-    video { display: none; }
+    video { 
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      transform: scaleX(-1);
+      object-fit: cover;
+      z-index: 1;
+    }
     canvas {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
       transform: scaleX(-1);
+      z-index: 2;
+      pointer-events: none;
     }
     #status {
       position: absolute;
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255, 215, 215, 0.6);
+      color: rgba(255, 215, 215, 0.8);
       font-size: 12px;
       letter-spacing: 3px;
       text-transform: uppercase;
-      background: rgba(10, 10, 20, 0.5);
+      background: rgba(10, 10, 20, 0.6);
       backdrop-filter: blur(10px);
       padding: 8px 24px;
       border-radius: 30px;
-      border: 1px solid rgba(255, 200, 200, 0.1);
+      border: 1px solid rgba(255, 200, 200, 0.15);
       z-index: 10;
       font-family: 'Georgia', serif;
       pointer-events: none;
@@ -46,7 +56,7 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: rgba(255, 220, 220, 0.08);
+      color: rgba(255, 220, 220, 0.12);
       font-size: clamp(40px, 12vw, 120px);
       font-weight: 300;
       letter-spacing: 8px;
@@ -63,7 +73,7 @@
       top: 55%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: rgba(255, 200, 200, 0.04);
+      color: rgba(255, 200, 200, 0.06);
       font-size: clamp(14px, 2vw, 30px);
       letter-spacing: 12px;
       text-align: center;
@@ -76,7 +86,7 @@
       position: absolute;
       bottom: 80px;
       right: 30px;
-      color: rgba(255, 200, 200, 0.15);
+      color: rgba(255, 200, 200, 0.2);
       font-size: 14px;
       letter-spacing: 2px;
       z-index: 5;
@@ -91,7 +101,7 @@
       position: absolute;
       top: 30px;
       right: 30px;
-      color: rgba(255, 200, 200, 0.08);
+      color: rgba(255, 200, 200, 0.12);
       font-size: 11px;
       letter-spacing: 1px;
       z-index: 5;
@@ -104,10 +114,10 @@
 </head>
 <body>
 <div id="wrap">
-  <video id="video" playsinline></video>
+  <video id="video" playsinline autoplay muted></video>
   <canvas id="canvas"></canvas>
   
-  <!-- ELEMEN AESTHETIC (kaya di gambar) -->
+  <!-- ELEMEN AESTHETIC -->
   <div id="aesthetic-text">✦ ETERNAL ✦</div>
   <div id="aesthetic-sub">— between stars —</div>
   <div id="like-counter"><span>✦</span> 222.419</div>
@@ -129,6 +139,20 @@
     const canvasEl = document.getElementById('canvas');
     const ctx = canvasEl.getContext('2d');
     const statusEl = document.getElementById('status');
+
+    // MULAI KAMERA LANGSUNG
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user', width: 640, height: 480 } 
+        });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+      } catch (err) {
+        statusEl.textContent = '⚠️ error kamera: ' + err.message;
+      }
+    }
+    startCamera();
 
     function resizeCanvas() {
       canvasEl.width = window.innerWidth;
@@ -242,7 +266,6 @@
 
       const angle = rot + Math.PI/2;
 
-      // Warna aesthetic: pink-gold-purple
       let hue = 330;
       if (gesture === 'fist') hue = 280;
       else if (gesture === 'two') hue = 350;
@@ -263,7 +286,7 @@
       ctx.arc(0, 0, baseSize * 2, 0, Math.PI * 2);
       ctx.fill();
 
-      // MAIN SHAPE - FLOWER / MANDALA
+      // MAIN SHAPE
       const layers = gesture === 'fist' ? 4 : (gesture === 'two' ? 6 : 5);
       const s = baseSize * 0.5;
 
@@ -295,7 +318,7 @@
         ctx.fill();
       }
 
-      // SPIRAL / GALAKSI
+      // SPIRAL
       for (let i = 0; i < 25; i++) {
         const t = i / 25;
         const ang = t * Math.PI * 3 + frameCount * 0.008;
@@ -339,16 +362,23 @@
       }
     }
 
+    // ----- LOOP DETECTION -----
+    async function detectLoop() {
+      try {
+        if (videoEl.readyState >= 2) {
+          // Kirim frame ke MediaPipe
+          await hands.send({ image: videoEl });
+        }
+      } catch (e) {
+        // silent
+      }
+      requestAnimationFrame(detectLoop);
+    }
+
     // ----- MEDIAPIPE RESULTS -----
     function onResults(results) {
+      // Kosongkan canvas
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-
-      // Background: video (wajah)
-      if (results.image) {
-        ctx.save();
-        ctx.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height);
-        ctx.restore();
-      }
 
       // Deteksi tangan
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
@@ -403,18 +433,10 @@
     });
     hands.onResults(onResults);
 
-    const camera = new Camera(videoEl, {
-      onFrame: async () => {
-        try {
-          await hands.send({ image: videoEl });
-        } catch (e) {}
-      },
-      width: 640,
-      height: 480
-    });
-    camera.start().catch(err => {
-      statusEl.textContent = '⚠️ error: ' + err.message;
-    });
+    // Start detection loop
+    setTimeout(() => {
+      detectLoop();
+    }, 1000);
 
     // INIT PARTICLES
     for (let i = 0; i < 50; i++) {
