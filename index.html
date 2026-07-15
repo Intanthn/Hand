@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR 2 Tangan · Ganti Gambar</title>
+  <title>AR 2 Tangan · Animasi di Pojok + Rotate</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a12; overflow: hidden; font-family: 'Georgia', serif; }
@@ -139,13 +139,13 @@
     resizeCanvas();
 
     // ---------- STATE ----------
-    let rightHandPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
     let gestureMode = 'open';
     let frameCount = 0;
     let zoomLevel = 1.0;
     let animVisible = true;
     let prevPinchDist = 0;
     let isPinching = false;
+    let currentRotation = 0;
 
     // ----- HITUNG JUMLAH JARI TERANGKAT -----
     function countFingers(landmarks) {
@@ -173,7 +173,6 @@
     function detectPinch(landmarks) {
       if (!landmarks) return { isPinching: false, dist: 0 };
       
-      // Hitung jarak rata-rata semua jari ke telapak
       const wrist = landmarks[0];
       const fingers = [4, 8, 12, 16, 20];
       let avgDist = 0;
@@ -184,7 +183,6 @@
       }
       avgDist /= fingers.length;
       
-      // Jika jarak kecil = jari kumpul (pinch)
       const isPinch = avgDist < 0.12;
       return { isPinching: isPinch, dist: avgDist };
     }
@@ -217,23 +215,27 @@
       return { mode, fingerCount, rot, isFist: fist };
     }
 
-    // ----- DRAW GAMBAR BERBEDA SETIAP GESTURE -----
+    // ----- DRAW GAMBAR DI POJOK KANAN ATAS + ROTATE -----
     function drawShape(gesture, rot, zoom) {
-      const cx = rightHandPos.x;
-      const cy = rightHandPos.y;
-
       if (gesture === 'fist') {
         animVisible = false;
         return;
       }
       animVisible = true;
 
-      let size = 120 * zoom;
-      if (gesture === 'open') size = 180 * zoom;
-      else if (gesture === 'one') size = 100 * zoom;
-      else if (gesture === 'two') size = 130 * zoom;
-      else if (gesture === 'three') size = 150 * zoom;
+      // POSISI TETAP DI POJOK KANAN ATAS
+      const w = canvasEl.width;
+      const h = canvasEl.height;
+      const cx = w * 0.78;
+      const cy = h * 0.22;
 
+      let size = 180 * zoom;
+      if (gesture === 'open') size = 220 * zoom;
+      else if (gesture === 'one') size = 160 * zoom;
+      else if (gesture === 'two') size = 190 * zoom;
+      else if (gesture === 'three') size = 200 * zoom;
+
+      // ROTASI dari tangan
       const angle = rot + Math.PI/2;
 
       ctx.save();
@@ -255,7 +257,7 @@
       ctx.shadowColor = 'rgba(255,200,230,0.3)';
       ctx.lineWidth = 2.5;
 
-      // --- GAMBAR BERBEDA ---
+      // --- GAMBAR BERBEDA SETIAP GESTURE ---
       if (gesture === 'open') {
         // BUNGA MAWAR / ROSE
         const petals = 12;
@@ -480,14 +482,9 @@
 
       // Proses tangan kanan
       if (rightHand) {
-        const wrist = rightHand[0];
-        const x = wrist.x * canvasEl.width;
-        const y = wrist.y * canvasEl.height;
-        rightHandPos.x = x;
-        rightHandPos.y = y;
-
         const gesture = analyzeRightHand(rightHand);
         gestureMode = gesture.mode;
+        currentRotation = gesture.rot || 0;
 
         // Proses tangan kiri untuk ZOOM (pinch)
         let zoom = zoomLevel;
@@ -496,14 +493,10 @@
           
           if (pinchData.isPinching) {
             if (!isPinching) {
-              // Mulai pinch
               isPinching = true;
               prevPinchDist = pinchData.dist;
             } else {
-              // Hitung perubahan
               const delta = pinchData.dist - prevPinchDist;
-              // Jika jari melebar (dist membesar) → zoom in
-              // Jika jari mengumpul (dist mengecil) → zoom out
               zoom = Math.max(0.3, Math.min(3.0, zoomLevel + delta * 15));
               zoomLevel = zoom;
               prevPinchDist = pinchData.dist;
@@ -529,6 +522,7 @@
             if (isPinching) statusText += ' | zoom: ' + zoom.toFixed(2);
             else statusText += ' | pinch untuk zoom';
           }
+          statusText += ' | putar tangan ↻';
           
           drawShape(gesture.mode, gesture.rot || 0, zoom);
         }
@@ -536,6 +530,10 @@
 
       } else {
         statusEl.textContent = '✧ tunjukkan tangan kananmu ✧';
+        // Tampilkan animasi default di pojok jika tidak ada tangan
+        if (animVisible) {
+          drawShape('open', 0, zoomLevel);
+        }
       }
 
       frameCount++;
