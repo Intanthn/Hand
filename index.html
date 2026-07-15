@@ -3,20 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR Aesthetic · Hand Magic</title>
+  <title>AR Multi-Gesture · 2 Hands</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      background: #0a0a12; 
-      overflow: hidden; 
-      font-family: 'Georgia', 'Times New Roman', serif;
-    }
+    body { background: #0a0a12; overflow: hidden; font-family: 'Georgia', serif; }
     #wrap {
       position: relative;
       width: 100vw; height: 100vh;
       background: #0a0a12;
     }
-    video { 
+    video {
       display: block;
       position: absolute;
       top: 0; left: 0;
@@ -38,25 +34,26 @@
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255, 215, 215, 0.8);
-      font-size: 12px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      background: rgba(10, 10, 20, 0.6);
+      color: rgba(255, 215, 215, 0.9);
+      font-size: 13px;
+      letter-spacing: 2px;
+      background: rgba(10, 10, 20, 0.7);
       backdrop-filter: blur(10px);
-      padding: 8px 24px;
+      padding: 10px 28px;
       border-radius: 30px;
       border: 1px solid rgba(255, 200, 200, 0.15);
       z-index: 10;
       font-family: 'Georgia', serif;
       pointer-events: none;
+      text-align: center;
+      min-width: 200px;
     }
     #aesthetic-text {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: rgba(255, 220, 220, 0.12);
+      color: rgba(255, 220, 220, 0.08);
       font-size: clamp(40px, 12vw, 120px);
       font-weight: 300;
       letter-spacing: 8px;
@@ -68,40 +65,23 @@
       line-height: 1.2;
       white-space: nowrap;
     }
-    #aesthetic-sub {
-      position: absolute;
-      top: 55%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: rgba(255, 200, 200, 0.06);
-      font-size: clamp(14px, 2vw, 30px);
-      letter-spacing: 12px;
-      text-align: center;
-      z-index: 5;
-      pointer-events: none;
-      font-family: 'Georgia', serif;
-      font-style: italic;
-    }
     #like-counter {
       position: absolute;
       bottom: 80px;
       right: 30px;
-      color: rgba(255, 200, 200, 0.2);
+      color: rgba(255, 200, 200, 0.15);
       font-size: 14px;
       letter-spacing: 2px;
       z-index: 5;
       pointer-events: none;
       font-family: 'Georgia', serif;
     }
-    #like-counter span {
-      font-size: 20px;
-      margin-right: 6px;
-    }
+    #like-counter span { font-size: 20px; margin-right: 6px; }
     #frame-info {
       position: absolute;
       top: 30px;
       right: 30px;
-      color: rgba(255, 200, 200, 0.12);
+      color: rgba(255, 200, 200, 0.1);
       font-size: 11px;
       letter-spacing: 1px;
       z-index: 5;
@@ -117,19 +97,16 @@
   <video id="video" playsinline autoplay muted></video>
   <canvas id="canvas"></canvas>
   
-  <!-- ELEMEN AESTHETIC -->
   <div id="aesthetic-text">✦ ETERNAL ✦</div>
-  <div id="aesthetic-sub">— between stars —</div>
   <div id="like-counter"><span>✦</span> 222.419</div>
   <div id="frame-info">
     Project1<br>
     (128,128) (139,786)<br>
     00:00:06:18
   </div>
-  <div id="status">✧ gerakkan tanganmu ✧</div>
+  <div id="status">✧ tunjukkan tanganmu ✧</div>
 </div>
 
-<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
@@ -140,7 +117,7 @@
     const ctx = canvasEl.getContext('2d');
     const statusEl = document.getElementById('status');
 
-    // MULAI KAMERA LANGSUNG
+    // START KAMERA
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -149,7 +126,7 @@
         videoEl.srcObject = stream;
         await videoEl.play();
       } catch (err) {
-        statusEl.textContent = '⚠️ error kamera: ' + err.message;
+        statusEl.textContent = '⚠️ error: ' + err.message;
       }
     }
     startCamera();
@@ -161,23 +138,27 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // ---------- PARTICLE SYSTEM AESTHETIC ----------
-    class AestheticParticle {
-      constructor(x, y, baseHue) {
-        this.x = x;
-        this.y = y;
+    // ---------- PARTICLE SYSTEM ----------
+    class Particle {
+      constructor(x, y, baseHue, type = 'flower') {
+        this.x = x; this.y = y;
+        this.type = type;
         const angle = Math.random() * Math.PI * 2;
-        const speed = 0.3 + Math.random() * 1.2;
+        const speed = 0.3 + Math.random() * 1.5;
         this.vx = Math.cos(angle) * speed * 0.4;
         this.vy = Math.sin(angle) * speed * 0.4 - 0.15;
         this.life = 0.7 + Math.random() * 0.5;
-        this.decay = 0.003 + Math.random() * 0.01;
-        this.size = 1 + Math.random() * 4;
+        this.decay = 0.003 + Math.random() * 0.012;
+        this.size = 1 + Math.random() * 5;
         this.hue = baseHue + (Math.random() - 0.5) * 40;
         this.sat = 70 + Math.random() * 30;
         this.light = 60 + Math.random() * 30;
         this.phase = Math.random() * Math.PI * 2;
-        this.type = Math.random() > 0.6 ? 'star' : 'circle';
+        this.shape = Math.random() > 0.5 ? 'star' : 'circle';
+        if (type === 'animal') {
+          this.size = 2 + Math.random() * 3;
+          this.shape = 'star';
+        }
       }
       update(frame) {
         this.x += this.vx + Math.sin(frame * 0.015 + this.phase) * 0.1;
@@ -189,13 +170,13 @@
         this.size *= 0.999;
       }
       draw(ctx) {
-        const a = Math.max(this.life, 0) * 0.7;
+        const a = Math.max(this.life, 0) * 0.8;
         ctx.globalAlpha = a;
         ctx.shadowColor = `hsl(${this.hue}, 100%, 70%)`;
         ctx.shadowBlur = 25;
         ctx.fillStyle = `hsl(${this.hue}, ${this.sat}%, ${this.light}%)`;
         
-        if (this.type === 'star') {
+        if (this.shape === 'star') {
           const spikes = 4;
           const rad = Math.max(this.size * 1.5, 1);
           ctx.beginPath();
@@ -219,67 +200,115 @@
     // ---------- STATE ----------
     let particles = [];
     let handPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
+    let leftHandPos = null;
     let gestureMode = 'open';
+    let leftHandMode = 'none';
     let frameCount = 0;
-    let currentHue = 320;
     let lastParticleTime = 0;
+    let zoomLevel = 1.0;
+    let animVisible = true;
+
+    // ----- HITUNG JUMLAH JARI TERANGKAT -----
+    function countFingers(landmarks) {
+      let count = 0;
+      // Jempol (4)
+      if (landmarks[4].x < landmarks[3].x) count++;
+      // Telunjuk (8)
+      if (landmarks[8].y < landmarks[6].y) count++;
+      // Tengah (12)
+      if (landmarks[12].y < landmarks[10].y) count++;
+      // Manis (16)
+      if (landmarks[16].y < landmarks[14].y) count++;
+      // Kelingking (20)
+      if (landmarks[20].y < landmarks[18].y) count++;
+      return count;
+    }
 
     // ----- ANALISIS GESTUR -----
     function analyzeGesture(landmarks) {
-      if (!landmarks || landmarks.length === 0) return { mode: 'none' };
+      if (!landmarks || landmarks.length === 0) return { mode: 'none', fingerCount: 0, rot: 0 };
 
-      const tips = [8, 12, 16, 20];
-      const pips = [6, 10, 14, 18];
-      let curled = 0;
-      for (let i = 0; i < tips.length; i++) {
-        if (landmarks[tips[i]].y > landmarks[pips[i]].y) curled++;
-      }
-      const indexDown = landmarks[8].y > landmarks[6].y;
-      const middleDown = landmarks[12].y > landmarks[10].y;
-      const twoDown = indexDown && middleDown;
-
+      const fingerCount = countFingers(landmarks);
       const wrist = landmarks[0];
       const midTip = landmarks[12];
       const dx = midTip.x - wrist.x;
       const dy = midTip.y - wrist.y;
       let rot = Math.atan2(dy, dx);
 
-      return {
-        mode: curled >= 3 ? 'fist' : (twoDown ? 'two' : 'open'),
-        rot: rot,
-        closed: curled >= 3,
-        two: twoDown
-      };
+      // Cek kepalan (semua jari turun)
+      const tips = [8, 12, 16, 20];
+      const pips = [6, 10, 14, 18];
+      let curled = 0;
+      for (let i = 0; i < tips.length; i++) {
+        if (landmarks[tips[i]].y > landmarks[pips[i]].y) curled++;
+      }
+      const isFist = curled >= 3;
+
+      let mode = 'open';
+      if (isFist && fingerCount <= 1) {
+        mode = 'fist';
+      } else if (fingerCount === 1) {
+        mode = 'one';
+      } else if (fingerCount === 2) {
+        mode = 'two';
+      } else if (fingerCount === 3) {
+        mode = 'three';
+      } else {
+        mode = 'open';
+      }
+
+      return { mode, fingerCount, rot, isFist };
     }
 
-    // ----- DRAW AESTHETIC SCENE -----
-    function drawAestheticScene(gesture, rot) {
+    // ----- DRAW SCENE -----
+    function drawScene(gesture, rot, zoom) {
       const w = canvasEl.width;
       const h = canvasEl.height;
       const cx = handPos.x;
       const cy = handPos.y;
 
-      let baseSize = 80 + Math.sin(frameCount * 0.02) * 5;
-      if (gesture === 'fist') baseSize = 60;
-      else if (gesture === 'two') baseSize = 100;
-      else baseSize = 120;
+      let baseSize = 80 * zoom;
+      
+      // Ukuran berdasarkan gesture
+      if (gesture === 'fist') {
+        return; // KEPAL → ANIMASI HILANG
+      } else if (gesture === 'one') {
+        baseSize = 70 * zoom; // 1 jari → hewan (lebih kecil)
+      } else if (gesture === 'two') {
+        baseSize = 90 * zoom; // 2 jari
+      } else if (gesture === 'three') {
+        baseSize = 100 * zoom; // 3 jari
+      } else { // open
+        baseSize = 140 * zoom; // BUKA → BESAR
+      }
 
       const angle = rot + Math.PI/2;
 
-      let hue = 330;
-      if (gesture === 'fist') hue = 280;
-      else if (gesture === 'two') hue = 350;
-      else hue = 320 + Math.sin(frameCount * 0.015) * 20;
-      currentHue = hue;
+      // Warna berdasarkan gesture
+      let hue = 320;
+      let particleType = 'flower';
+      if (gesture === 'one') {
+        hue = 40; // gold/orange
+        particleType = 'animal';
+      } else if (gesture === 'two') {
+        hue = 280; // purple
+        particleType = 'flower';
+      } else if (gesture === 'three') {
+        hue = 190; // cyan/blue
+        particleType = 'flower';
+      } else { // open
+        hue = 330 + Math.sin(frameCount * 0.015) * 20;
+        particleType = 'flower';
+      }
 
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
 
-      // GLOW BACKGROUND
+      // GLOW
       const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, baseSize * 2);
-      grad.addColorStop(0, `hsla(${hue}, 90%, 75%, 0.15)`);
-      grad.addColorStop(0.4, `hsla(${hue+30}, 80%, 60%, 0.07)`);
+      grad.addColorStop(0, `hsla(${hue}, 90%, 75%, 0.2)`);
+      grad.addColorStop(0.4, `hsla(${hue+30}, 80%, 60%, 0.08)`);
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -287,24 +316,38 @@
       ctx.fill();
 
       // MAIN SHAPE
-      const layers = gesture === 'fist' ? 4 : (gesture === 'two' ? 6 : 5);
+      let layers = 5;
+      let petals = 7;
+      if (gesture === 'one') {
+        layers = 3;
+        petals = 5; // hewan: lebih simpel
+      } else if (gesture === 'two') {
+        layers = 6;
+        petals = 8;
+      } else if (gesture === 'three') {
+        layers = 6;
+        petals = 7;
+      } else {
+        layers = 6;
+        petals = 8;
+      }
+
       const s = baseSize * 0.5;
 
       for (let layer = 0; layer < layers; layer++) {
         const scale = 1 - layer * 0.1;
         const alpha = 0.2 + layer * 0.1;
         ctx.globalAlpha = alpha;
-        const layerHue = hue + layer * 12 + (gesture === 'fist' ? 15 : 0);
+        const layerHue = hue + layer * 12 + (gesture === 'one' ? 15 : 0);
         
         ctx.shadowColor = `hsl(${layerHue+20}, 100%, 70%)`;
         ctx.shadowBlur = 30 - layer * 2;
         ctx.strokeStyle = `hsl(${layerHue}, 85%, ${65 + layer * 4}%)`;
         ctx.lineWidth = 1.5 - layer * 0.1;
 
-        const petals = gesture === 'fist' ? 6 : (gesture === 'two' ? 8 : 7);
         ctx.beginPath();
         for (let i = 0; i < petals * 2; i++) {
-          const r = i % 2 === 0 ? s * scale : s * scale * 0.35;
+          const r = i % 2 === 0 ? s * scale : s * scale * (gesture === 'one' ? 0.5 : 0.35);
           const ang = (i / (petals * 2)) * Math.PI * 2 + frameCount * 0.002 + layer * 0.15;
           const px = Math.cos(ang) * r;
           const py = Math.sin(ang) * r;
@@ -318,7 +361,7 @@
         ctx.fill();
       }
 
-      // SPIRAL
+      // SPIRAL INTERNAL
       for (let i = 0; i < 25; i++) {
         const t = i / 25;
         const ang = t * Math.PI * 3 + frameCount * 0.008;
@@ -348,71 +391,95 @@
 
       // SPAWN PARTICLES
       const now = Date.now();
-      if (now - lastParticleTime > 20) {
-        const count = gesture === 'fist' ? 2 : (gesture === 'two' ? 3 : 4);
+      if (now - lastParticleTime > 20 && gesture !== 'fist') {
+        let count = gesture === 'one' ? 2 : (gesture === 'two' ? 3 : 4);
+        if (gesture === 'open') count = 5;
         for (let i = 0; i < count; i++) {
           const ang2 = Math.random() * Math.PI * 2;
           const dist = baseSize * 0.3 * (0.4 + Math.random() * 0.6);
           const px = cx + Math.cos(ang2 + angle) * dist;
           const py = cy + Math.sin(ang2 + angle) * dist;
-          const p = new AestheticParticle(px, py, hue + (Math.random() - 0.5) * 50);
+          const p = new Particle(px, py, hue + (Math.random() - 0.5) * 50, particleType);
           particles.push(p);
         }
         lastParticleTime = now;
       }
     }
 
-    // ----- LOOP DETECTION -----
-    async function detectLoop() {
-      try {
-        if (videoEl.readyState >= 2) {
-          // Kirim frame ke MediaPipe
-          await hands.send({ image: videoEl });
-        }
-      } catch (e) {
-        // silent
-      }
-      requestAnimationFrame(detectLoop);
-    }
-
     // ----- MEDIAPIPE RESULTS -----
     function onResults(results) {
-      // Kosongkan canvas
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
-      // Deteksi tangan
+      // Track tangan
+      let rightHand = null;
+      let leftHand = null;
+
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const lm = results.multiHandLandmarks[0];
-        const wrist = lm[0];
+        // Asumsi: tangan pertama = kanan (karena mirror), tangan kedua = kiri
+        for (let i = 0; i < results.multiHandLandmarks.length && i < 2; i++) {
+          const lm = results.multiHandLandmarks[i];
+          if (i === 0) rightHand = lm;
+          else if (i === 1) leftHand = lm;
+        }
+      }
+
+      // Proses tangan kanan (utama)
+      if (rightHand) {
+        const wrist = rightHand[0];
         const x = wrist.x * canvasEl.width;
         const y = wrist.y * canvasEl.height;
         handPos.x = x;
         handPos.y = y;
 
-        const gesture = analyzeGesture(lm);
+        const gesture = analyzeGesture(rightHand);
         gestureMode = gesture.mode;
 
-        let statusText = '';
-        if (gestureMode === 'fist') statusText = '✧ kepalan · violet ✧';
-        else if (gestureMode === 'two') statusText = '✧ 2 jari · rose ✧';
-        else if (gestureMode === 'open') statusText = '✧ terbuka · pearl ✧';
-        statusEl.textContent = statusText + '  |  putar tangan';
+        // Zoom dari tangan kiri
+        let zoom = zoomLevel;
+        if (leftHand) {
+          const leftWrist = leftHand[0];
+          const lx = leftWrist.x * canvasEl.width;
+          const ly = leftWrist.y * canvasEl.height;
+          // Jarak tangan kiri ke kanan (semakin dekat → zoom in)
+          const dist = Math.sqrt((lx - x) ** 2 + (ly - y) ** 2);
+          const maxDist = Math.min(canvasEl.width, canvasEl.height) * 0.8;
+          zoom = Math.max(0.5, Math.min(2.0, 1.5 - (dist / maxDist) * 0.8));
+          zoomLevel = zoom;
+        }
 
-        drawAestheticScene(gestureMode, gesture.rot || 0);
+        let statusText = '';
+        if (gesture.mode === 'fist') {
+          statusText = '✊ kepalan · animasi hilang';
+          animVisible = false;
+        } else {
+          animVisible = true;
+          if (gesture.mode === 'one') statusText = '☝️ 1 jari · hewan ✦';
+          else if (gesture.mode === 'two') statusText = '✌️ 2 jari · galaxy ✦';
+          else if (gesture.mode === 'three') statusText = '🖖 3 jari · kristal ✦';
+          else statusText = '🖐️ terbuka · bunga ✦';
+          if (leftHand) statusText += ' | zoom: ' + zoom.toFixed(2);
+        }
+        statusEl.textContent = statusText;
+
+        // GAMBAR SCENE
+        if (animVisible) {
+          drawScene(gesture.mode, gesture.rot || 0, zoom);
+        }
+
       } else {
-        statusEl.textContent = '✧ tunjukkan tanganmu ✧';
+        statusEl.textContent = '✧ tunjukkan tangan kananmu ✧';
         // ambient particles
         if (frameCount % 3 === 0) {
           const x = Math.random() * canvasEl.width;
           const y = Math.random() * canvasEl.height;
-          const p = new AestheticParticle(x, y, 320 + Math.random()*40);
+          const p = new Particle(x, y, 320 + Math.random()*40);
           p.life = 0.4;
           p.size = 1.5;
           particles.push(p);
         }
       }
 
-      // Update & draw particles
+      // UPDATE PARTICLES
       particles = particles.filter(p => p.life > 0);
       particles.forEach(p => { p.update(frameCount); p.draw(ctx); });
       ctx.globalAlpha = 1;
@@ -421,26 +488,33 @@
       frameCount++;
     }
 
-    // ----- INIT MEDIAPIPE -----
+    // ----- MEDIAPIPE INIT -----
     const hands = new Hands({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
     hands.setOptions({
-      maxNumHands: 1,
+      maxNumHands: 2,
       modelComplexity: 1,
       minDetectionConfidence: 0.7,
       minTrackingConfidence: 0.6
     });
     hands.onResults(onResults);
 
-    // Start detection loop
-    setTimeout(() => {
-      detectLoop();
-    }, 1000);
+    // LOOP DETECTION
+    async function detectLoop() {
+      try {
+        if (videoEl.readyState >= 2) {
+          await hands.send({ image: videoEl });
+        }
+      } catch (e) {}
+      requestAnimationFrame(detectLoop);
+    }
+
+    setTimeout(() => detectLoop(), 1000);
 
     // INIT PARTICLES
     for (let i = 0; i < 50; i++) {
-      const p = new AestheticParticle(
+      const p = new Particle(
         Math.random() * window.innerWidth,
         Math.random() * window.innerHeight,
         320 + Math.random()*50
