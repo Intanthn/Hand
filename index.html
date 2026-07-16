@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR Puzzle · Frame & Susun</title>
+  <title>AR Puzzle · Frame Capture</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a12; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -81,11 +81,24 @@
       border: 1px solid rgba(255,255,255,0.05);
     }
     #puzzle-counter span { color: white; font-weight: 700; font-size: 22px; }
+    #piece-status {
+      position: absolute;
+      top: 80px;
+      right: 30px;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      z-index: 10;
+      text-align: right;
+      pointer-events: none;
+      background: rgba(0,0,0,0.3);
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
     #complete-overlay {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
       backdrop-filter: blur(20px);
       z-index: 20;
       display: none;
@@ -137,25 +150,12 @@
       bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.2);
       font-size: 11px;
       letter-spacing: 1px;
       z-index: 5;
       pointer-events: none;
       text-align: center;
-    }
-    #piece-status {
-      position: absolute;
-      top: 80px;
-      right: 30px;
-      color: rgba(255,255,255,0.5);
-      font-size: 12px;
-      z-index: 10;
-      text-align: right;
-      pointer-events: none;
-      background: rgba(0,0,0,0.3);
-      padding: 6px 12px;
-      border-radius: 8px;
     }
   </style>
 </head>
@@ -168,7 +168,7 @@
   <div id="puzzle-counter">📸 <span id="puzzle-count">0</span> / 3</div>
   <div id="piece-status">🧩 0 / 4</div>
   <div id="status">✧ pinch 2 jari untuk bikin frame ✧</div>
-  <div class="hint">pinch 2 tangan → frame · lepas → capture · drag potongan</div>
+  <div class="hint">pinch 2 tangan → frame · lepas → capture area dalam frame · susun puzzle</div>
   
   <div id="complete-overlay">
     <h1>✦ STRAP COMPLETE ✦</h1>
@@ -222,7 +222,6 @@ startCamera();
 // ============================================================
 // STATE
 // ============================================================
-let allPuzzlePieces = [];
 let capturedImages = [];
 let puzzleCount = 0;
 let isCapturing = false;
@@ -231,6 +230,7 @@ let dragPiece = null;
 let dragOffset = { x: 0, y: 0 };
 let currentPieces = [];
 let placedCount = 0;
+let isFrameReady = false;
 
 // ============================================================
 // FUNGSI GESTUR
@@ -240,7 +240,7 @@ function isPinch(lm) {
   const thumb = lm[4];
   const index = lm[8];
   const dist = Math.sqrt((thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2);
-  return dist < 0.04;
+  return dist < 0.045;
 }
 
 function getHandCenter(lm) {
@@ -259,7 +259,16 @@ function drawFrameBox(box) {
   if (!box) return;
   const { x, y, w, h } = box;
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  
+  // Darken outside
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, W, y);
+  ctx.fillRect(0, y + h, W, H - y - h);
+  ctx.fillRect(0, y, x, h);
+  ctx.fillRect(x + w, y, W - x - w, h);
+  
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
   ctx.lineWidth = 3;
   ctx.setLineDash([8, 6]);
   ctx.shadowBlur = 30;
@@ -283,15 +292,14 @@ function drawFrameBox(box) {
     ctx.stroke();
   });
   
-  // Label
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '12px sans-serif';
-  ctx.fillText('📸 FRAME', x + 10, y + 30);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('📸 AREA CAPTURE', x + 12, y + 30);
   ctx.restore();
 }
 
 // ============================================================
-// CAPTURE & PUZZLE
+// CAPTURE AREA DALAM FRAME
 // ============================================================
 function captureFrame() {
   if (isCapturing || puzzleCount >= 3) return;
@@ -320,12 +328,29 @@ function captureFrame() {
 }
 
 function doCapture() {
-  // Capture dari video
+  // Capture HANYA area dalam frame dari video
+  const { x, y, w, h } = frameBox;
+  
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = 320;
   tempCanvas.height = 240;
   const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.drawImage(video, 0, 0, 320, 240);
+  
+  // Ambil dari video dengan crop area frame
+  // Video di-mirror, jadi kita sesuaikan
+  const vw = video.videoWidth || 640;
+  const vh = video.videoHeight || 480;
+  
+  // Hitung proporsi area frame terhadap layar
+  const scaleX = vw / W;
+  const scaleY = vh / H;
+  
+  const sx = x * scaleX;
+  const sy = y * scaleY;
+  const sw = w * scaleX;
+  const sh = h * scaleY;
+  
+  tempCtx.drawImage(video, sx, sy, sw, sh, 0, 0, 320, 240);
   
   const imageData = tempCanvas.toDataURL('image/jpeg');
   capturedImages.push(imageData);
@@ -348,7 +373,6 @@ function doCapture() {
       const pCtx = pieceCanvas.getContext('2d');
       pCtx.drawImage(tempCanvas, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
       
-      // Simpan posisi target (grid rapi)
       const targetX = startX + c * (pw * 0.5 + spacing * 0.5);
       const targetY = startY + r * (ph * 0.5 + spacing * 0.5);
       
@@ -369,7 +393,6 @@ function doCapture() {
   }
   
   currentPieces = pieces;
-  allPuzzlePieces = allPuzzlePieces.concat(pieces);
   placedCount = 0;
   puzzleCount++;
   puzzleCountEl.textContent = puzzleCount;
@@ -378,6 +401,7 @@ function doCapture() {
   statusEl.textContent = `🧩 Susun potongan ke posisi yang benar (${puzzleCount}/3)`;
   isCapturing = false;
   frameBox = null;
+  isFrameReady = false;
   
   if (puzzleCount >= 3) {
     setTimeout(showComplete, 1000);
@@ -385,13 +409,12 @@ function doCapture() {
 }
 
 // ============================================================
-// DRAG PUZZLE PIECE (dengan pinch 1 tangan)
+// DRAG PUZZLE PIECE
 // ============================================================
 function handleDrag(handPos, isPinching) {
   if (puzzleCount >= 3 || currentPieces.length === 0) return;
   
   if (isPinching && !dragPiece) {
-    // Cari piece yang kena (dari yang paling atas)
     for (let i = currentPieces.length - 1; i >= 0; i--) {
       const p = currentPieces[i];
       if (p.placed) continue;
@@ -406,7 +429,6 @@ function handleDrag(handPos, isPinching) {
       }
     }
   } else if (!isPinching && dragPiece) {
-    // Drop: cek apakah di posisi target
     const p = dragPiece;
     const dist = Math.sqrt((p.x - p.targetX) ** 2 + (p.y - p.targetY) ** 2);
     if (dist < 40) {
@@ -417,7 +439,6 @@ function handleDrag(handPos, isPinching) {
       updatePieceStatus();
       statusEl.textContent = `✅ Potongan ditempatkan! (${placedCount}/4)`;
       
-      // Cek apakah semua sudah ditempatkan
       if (placedCount === 4) {
         statusEl.textContent = `🎉 Foto ${puzzleCount} selesai! Buat frame lagi untuk foto berikutnya`;
       }
@@ -450,7 +471,6 @@ function showComplete() {
 }
 
 function resetAll() {
-  allPuzzlePieces = [];
   capturedImages = [];
   puzzleCount = 0;
   placedCount = 0;
@@ -459,6 +479,7 @@ function resetAll() {
   completeOverlay.classList.remove('show');
   frameBox = null;
   dragPiece = null;
+  isFrameReady = false;
   updatePieceStatus();
   statusEl.textContent = '✧ pinch 2 jari untuk bikin frame ✧';
 }
@@ -475,7 +496,6 @@ function drawPieces() {
     ctx.shadowBlur = p.placed ? 15 : 30;
     ctx.shadowColor = p.placed ? 'rgba(0,255,200,0.2)' : 'rgba(255,255,255,0.1)';
     
-    // Border jika belum placed
     if (!p.placed) {
       ctx.strokeStyle = 'rgba(255,255,255,0.2)';
       ctx.lineWidth = 2;
@@ -508,11 +528,10 @@ function onResults(results) {
     }
   }
   
-  // DETEKSI FRAME (2 tangan pinch)
   const rightPinch = rightHand ? isPinch(rightHand) : false;
   const leftPinch = leftHand ? isPinch(leftHand) : false;
   
-  // Jika lagi tidak ada drag, cek frame
+  // DETEKSI FRAME (2 tangan pinch)
   if (!dragPiece) {
     if (rightPinch && leftPinch && rightHand && leftHand) {
       const rCenter = getHandCenter(rightHand);
@@ -525,26 +544,24 @@ function onResults(results) {
       
       if (w > 40 && h > 40) {
         frameBox = { x, y, w, h };
+        isFrameReady = true;
         drawFrameBox(frameBox);
-        statusEl.textContent = '📐 frame siap! · lepas pinch untuk capture';
+        statusEl.textContent = '📐 frame siap! · lepas pinch untuk capture area dalam frame';
       }
     } else {
       // Cek apakah frame sudah dibuat dan tidak ada pinch → capture
-      if (frameBox && !rightPinch && !leftPinch && !isCapturing && puzzleCount < 3) {
-        // Cek apakah semua potongan sebelumnya sudah ditempatkan
+      if (isFrameReady && frameBox && !rightPinch && !leftPinch && !isCapturing && puzzleCount < 3) {
         if (currentPieces.length === 0 || placedCount === currentPieces.length) {
           captureFrame();
         } else {
           statusEl.textContent = `⚠️ Selesaikan puzzle dulu! (${placedCount}/${currentPieces.length})`;
         }
-      }
-      if (!rightPinch && !leftPinch && !isCapturing) {
-        // Tidak ada frame, tapi kita tetap tampilkan
+        isFrameReady = false;
       }
     }
   }
   
-  // DRAG PUZZLE (dengan 1 tangan pinch)
+  // DRAG PUZZLE (1 tangan pinch)
   if (rightHand && isPinch(rightHand) && currentPieces.length > 0 && puzzleCount < 3) {
     const center = getHandCenter(rightHand);
     handleDrag({ x: center.x * W, y: center.y * H }, true);
@@ -555,16 +572,16 @@ function onResults(results) {
   // Draw pieces
   drawPieces();
   
-  // Draw frame jika ada dan tidak sedang drag
-  if (frameBox && !dragPiece) {
+  // Draw frame jika ada
+  if (frameBox && isFrameReady && !dragPiece) {
     drawFrameBox(frameBox);
   }
   
   // Status update
   if (puzzleCount < 3) {
-    if (!frameBox && !dragPiece && currentPieces.length > 0 && placedCount < currentPieces.length) {
+    if (!isFrameReady && !dragPiece && currentPieces.length > 0 && placedCount < currentPieces.length) {
       statusEl.textContent = `🧩 Susun puzzle (${placedCount}/${currentPieces.length}) · pinch & drag`;
-    } else if (!frameBox && !dragPiece && currentPieces.length > 0 && placedCount === currentPieces.length) {
+    } else if (!isFrameReady && !dragPiece && currentPieces.length > 0 && placedCount === currentPieces.length) {
       statusEl.textContent = `✅ Foto ${puzzleCount} selesai! Buat frame untuk foto berikutnya`;
     }
   }
@@ -597,11 +614,11 @@ async function detectLoop() {
 setTimeout(detectLoop, 1000);
 
 // ============================================================
-// KEYBOARD SHORTCUT (testing)
+// KEYBOARD SHORTCUT
 // ============================================================
 document.addEventListener('keydown', (e) => {
   if (e.key === 'c' || e.key === 'C') {
-    if (frameBox && (currentPieces.length === 0 || placedCount === currentPieces.length)) {
+    if (isFrameReady && frameBox && (currentPieces.length === 0 || placedCount === currentPieces.length)) {
       captureFrame();
     }
   }
