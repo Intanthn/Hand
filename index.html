@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR 2 Tangan · Animasi di Pojok + Rotate</title>
+  <title>AR Puzzle · Frame Capture</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0a12; overflow: hidden; font-family: 'Georgia', serif; }
+    body { background: #0a0a12; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
     #wrap {
       position: relative;
       width: 100vw; height: 100vh;
       background: #0a0a12;
+      overflow: hidden;
     }
     video {
       display: block;
@@ -34,61 +35,120 @@
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      color: rgba(255, 215, 215, 0.9);
-      font-size: 13px;
-      letter-spacing: 2px;
-      background: rgba(10, 10, 20, 0.8);
+      color: rgba(255,215,215,0.9);
+      font-size: 14px;
+      background: rgba(10,10,20,0.7);
       backdrop-filter: blur(10px);
-      padding: 10px 28px;
+      padding: 10px 24px;
       border-radius: 30px;
-      border: 1px solid rgba(255, 200, 200, 0.15);
+      border: 1px solid rgba(255,200,200,0.1);
       z-index: 10;
-      font-family: 'Georgia', serif;
-      pointer-events: none;
       text-align: center;
-      min-width: 200px;
+      pointer-events: none;
+      font-weight: 300;
+      letter-spacing: 0.5px;
     }
-    #aesthetic-text {
+    #timer-display {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: rgba(255, 220, 220, 0.06);
-      font-size: clamp(40px, 12vw, 120px);
-      font-weight: 300;
-      letter-spacing: 8px;
-      text-align: center;
-      z-index: 5;
+      color: white;
+      font-size: 120px;
+      font-weight: 700;
+      z-index: 10;
+      text-shadow: 0 0 60px rgba(255,200,200,0.5);
       pointer-events: none;
-      font-family: 'Georgia', serif;
-      text-shadow: 0 0 60px rgba(255, 150, 200, 0.03);
-      line-height: 1.2;
-      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-variant-numeric: tabular-nums;
     }
-    #like-counter {
-      position: absolute;
-      bottom: 80px;
-      right: 30px;
-      color: rgba(255, 200, 200, 0.12);
-      font-size: 14px;
-      letter-spacing: 2px;
-      z-index: 5;
-      pointer-events: none;
-      font-family: 'Georgia', serif;
+    #timer-display.show {
+      opacity: 1;
     }
-    #like-counter span { font-size: 20px; margin-right: 6px; }
-    #frame-info {
+    #puzzle-counter {
       position: absolute;
       top: 30px;
       right: 30px;
-      color: rgba(255, 200, 200, 0.08);
+      color: rgba(255,255,255,0.6);
+      font-size: 16px;
+      z-index: 10;
+      text-align: right;
+      pointer-events: none;
+      background: rgba(0,0,0,0.4);
+      padding: 8px 16px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    #puzzle-counter span {
+      color: white;
+      font-weight: 700;
+      font-size: 22px;
+    }
+    #complete-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(20px);
+      z-index: 20;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 20px;
+    }
+    #complete-overlay.show {
+      display: flex;
+    }
+    #complete-overlay h1 {
+      color: white;
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: 4px;
+    }
+    #complete-overlay .strip {
+      display: flex;
+      gap: 12px;
+      padding: 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    #complete-overlay .strip img {
+      width: 120px;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    #complete-overlay button {
+      background: #ff2d55;
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: transform 0.2s;
+    }
+    #complete-overlay button:hover {
+      transform: scale(1.05);
+    }
+    .hint {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.3);
       font-size: 11px;
       letter-spacing: 1px;
       z-index: 5;
       pointer-events: none;
-      font-family: 'Courier New', monospace;
-      text-align: right;
-      line-height: 1.8;
+      text-align: center;
     }
   </style>
 </head>
@@ -97,472 +157,422 @@
   <video id="video" playsinline autoplay muted></video>
   <canvas id="canvas"></canvas>
   
-  <div id="aesthetic-text">✦ ETERNAL ✦</div>
-  <div id="like-counter"><span>✦</span> 222.419</div>
-  <div id="frame-info">
-    Project1<br>
-    (128,128) (139,786)<br>
-    00:00:06:18
+  <div id="timer-display">3</div>
+  <div id="puzzle-counter">🧩 <span id="puzzle-count">0</span> / 3</div>
+  <div id="status">✧ bentuk frame dengan 2 tangan ✧</div>
+  <div class="hint">pinch 2 tangan → frame · capture otomatis · susun puzzle</div>
+  
+  <div id="complete-overlay">
+    <h1>✦ STRAP COMPLETE ✦</h1>
+    <div class="strip" id="strip-container"></div>
+    <button onclick="resetAll()">⟳ ULANGI</button>
   </div>
-  <div id="status">✧ tunjukkan tangan kananmu ✧</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
 <script>
-  (function() {
-    const videoEl = document.getElementById('video');
-    const canvasEl = document.getElementById('canvas');
-    const ctx = canvasEl.getContext('2d');
-    const statusEl = document.getElementById('status');
+// ============================================================
+// SETUP
+// ============================================================
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const timerDisplay = document.getElementById('timer-display');
+const puzzleCountEl = document.getElementById('puzzle-count');
+const completeOverlay = document.getElementById('complete-overlay');
+const stripContainer = document.getElementById('strip-container');
 
-    // START KAMERA
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'user', width: 640, height: 480 } 
-        });
-        videoEl.srcObject = stream;
-        await videoEl.play();
-      } catch (err) {
-        statusEl.textContent = '⚠️ error: ' + err.message;
+let W = 0, H = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+// KAMERA
+// ============================================================
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: 640, height: 480 }
+    });
+    video.srcObject = stream;
+    await video.play();
+  } catch (err) {
+    statusEl.textContent = '⚠️ ' + err.message;
+  }
+}
+startCamera();
+
+// ============================================================
+// STATE PUZZLE
+// ============================================================
+let puzzlePieces = [];
+let capturedImages = [];
+let puzzleCount = 0;
+let isCapturing = false;
+let countdown = 0;
+let frameBox = null;
+let isPinchingBoth = false;
+let framePoints = [];
+let dragPiece = null;
+let dragOffset = { x: 0, y: 0 };
+
+// ============================================================
+// FUNGSI GESTUR
+// ============================================================
+function countFingers(lm) {
+  let c = 0;
+  if (lm[4].x < lm[3].x) c++;
+  if (lm[8].y < lm[6].y) c++;
+  if (lm[12].y < lm[10].y) c++;
+  if (lm[16].y < lm[14].y) c++;
+  if (lm[20].y < lm[18].y) c++;
+  return c;
+}
+
+function isPinch(lm) {
+  if (!lm) return false;
+  const thumb = lm[4];
+  const index = lm[8];
+  const dist = Math.sqrt((thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2);
+  return dist < 0.04;
+}
+
+function isFist(lm) {
+  let curled = 0;
+  const tips = [8, 12, 16, 20];
+  const pips = [6, 10, 14, 18];
+  for (let i = 0; i < 4; i++) {
+    if (lm[tips[i]].y > lm[pips[i]].y) curled++;
+  }
+  return curled >= 3;
+}
+
+function getHandCenter(lm) {
+  let cx = 0, cy = 0;
+  for (let i = 0; i < lm.length; i++) {
+    cx += lm[i].x;
+    cy += lm[i].y;
+  }
+  return { x: cx / lm.length, y: cy / lm.length };
+}
+
+// ============================================================
+// DRAW FRAME
+// ============================================================
+function drawFrameBox(box) {
+  if (!box) return;
+  const { x, y, w, h } = box;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 6]);
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = 'rgba(255,200,200,0.3)';
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  
+  // Corner markers
+  const cornerSize = 20;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  const corners = [
+    [x, y, 1, 1], [x+w, y, -1, 1],
+    [x, y+h, 1, -1], [x+w, y+h, -1, -1]
+  ];
+  corners.forEach(([cx, cy, dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + dx * cornerSize, cy);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(cx, cy + dy * cornerSize);
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+// ============================================================
+// CAPTURE & PUZZLE
+// ============================================================
+function captureFrame() {
+  if (isCapturing || puzzleCount >= 3) return;
+  if (!frameBox) {
+    statusEl.textContent = '✧ bentuk frame dulu dengan 2 tangan ✧';
+    return;
+  }
+  
+  isCapturing = true;
+  let count = 3;
+  timerDisplay.textContent = count;
+  timerDisplay.classList.add('show');
+  statusEl.textContent = `📸 capture dalam ${count}...`;
+  
+  const interval = setInterval(() => {
+    count--;
+    if (count <= 0) {
+      clearInterval(interval);
+      timerDisplay.classList.remove('show');
+      doCapture();
+    } else {
+      timerDisplay.textContent = count;
+      statusEl.textContent = `📸 ${count}...`;
+    }
+  }, 800);
+}
+
+function doCapture() {
+  // Capture dari video
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 320;
+  tempCanvas.height = 240;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(video, 0, 0, 320, 240);
+  
+  const imageData = tempCanvas.toDataURL('image/jpeg');
+  capturedImages.push(imageData);
+  
+  // Buat potongan puzzle (4 potongan)
+  const pieces = [];
+  const cols = 2, rows = 2;
+  const pw = 160, ph = 120;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const pieceCanvas = document.createElement('canvas');
+      pieceCanvas.width = pw;
+      pieceCanvas.height = ph;
+      const pCtx = pieceCanvas.getContext('2d');
+      pCtx.drawImage(tempCanvas, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
+      pieces.push({
+        id: pieces.length,
+        image: pieceCanvas.toDataURL('image/jpeg'),
+        x: 100 + Math.random() * 200,
+        y: 100 + Math.random() * 200,
+        targetX: 100 + c * (pw + 10),
+        targetY: 100 + r * (ph + 10),
+        w: pw * 0.6,
+        h: ph * 0.6,
+        placed: false
+      });
+    }
+  }
+  
+  puzzlePieces = puzzlePieces.concat(pieces);
+  puzzleCount++;
+  puzzleCountEl.textContent = puzzleCount;
+  
+  statusEl.textContent = `🧩 Potongan ${puzzleCount}/3 · susun dengan pinch & drag`;
+  isCapturing = false;
+  frameBox = null;
+  
+  if (puzzleCount >= 3) {
+    setTimeout(showComplete, 500);
+  }
+}
+
+// ============================================================
+// DRAG PUZZLE PIECE (dengan pinch)
+// ============================================================
+function handleDrag(handPos, isPinching) {
+  if (puzzleCount >= 3) return;
+  
+  if (isPinching && !dragPiece) {
+    // Cari piece yang kena
+    for (let i = puzzlePieces.length - 1; i >= 0; i--) {
+      const p = puzzlePieces[i];
+      if (p.placed) continue;
+      const px = p.x * W, py = p.y * H;
+      const pw = p.w * W, ph = p.h * H;
+      if (handPos.x > px - pw/2 && handPos.x < px + pw/2 &&
+          handPos.y > py - ph/2 && handPos.y < py + ph/2) {
+        dragPiece = p;
+        dragOffset.x = handPos.x - px;
+        dragOffset.y = handPos.y - py;
+        break;
       }
     }
-    startCamera();
-
-    function resizeCanvas() {
-      canvasEl.width = window.innerWidth;
-      canvasEl.height = window.innerHeight;
+  } else if (!isPinching && dragPiece) {
+    // Drop: cek target
+    const p = dragPiece;
+    const tx = p.targetX, ty = p.targetY;
+    if (Math.abs(p.x - tx) < 0.05 && Math.abs(p.y - ty) < 0.05) {
+      p.placed = true;
+      p.x = tx;
+      p.y = ty;
+      statusEl.textContent = `✅ Potongan ditempatkan! (${puzzlePieces.filter(pp => pp.placed).length}/${puzzlePieces.length})`;
     }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    dragPiece = null;
+  }
+  
+  if (dragPiece) {
+    dragPiece.x = (handPos.x - dragOffset.x) / W;
+    dragPiece.y = (handPos.y - dragOffset.y) / H;
+  }
+}
 
-    // ---------- STATE ----------
-    let gestureMode = 'open';
-    let frameCount = 0;
-    let zoomLevel = 1.0;
-    let animVisible = true;
-    let prevPinchDist = 0;
-    let isPinching = false;
-    let currentRotation = 0;
+// ============================================================
+// SHOW COMPLETE
+// ============================================================
+function showComplete() {
+  stripContainer.innerHTML = '';
+  capturedImages.forEach(img => {
+    const el = document.createElement('img');
+    el.src = img;
+    stripContainer.appendChild(el);
+  });
+  completeOverlay.classList.add('show');
+  statusEl.textContent = '🎉 Selesai! Strap foto siap!';
+}
 
-    // ----- HITUNG JUMLAH JARI TERANGKAT -----
-    function countFingers(landmarks) {
-      let count = 0;
-      if (landmarks[4].x < landmarks[3].x) count++;
-      if (landmarks[8].y < landmarks[6].y) count++;
-      if (landmarks[12].y < landmarks[10].y) count++;
-      if (landmarks[16].y < landmarks[14].y) count++;
-      if (landmarks[20].y < landmarks[18].y) count++;
-      return count;
-    }
+function resetAll() {
+  puzzlePieces = [];
+  capturedImages = [];
+  puzzleCount = 0;
+  puzzleCountEl.textContent = '0';
+  completeOverlay.classList.remove('show');
+  frameBox = null;
+  dragPiece = null;
+  statusEl.textContent = '✧ bentuk frame dengan 2 tangan ✧';
+}
 
-    // ----- CEK KEPALAN -----
-    function isFist(landmarks) {
-      const tips = [8, 12, 16, 20];
-      const pips = [6, 10, 14, 18];
-      let curled = 0;
-      for (let i = 0; i < tips.length; i++) {
-        if (landmarks[tips[i]].y > landmarks[pips[i]].y) curled++;
-      }
-      return curled >= 3;
-    }
-
-    // ----- CEK PINCH (semua jari kumpul lalu melebar) -----
-    function detectPinch(landmarks) {
-      if (!landmarks) return { isPinching: false, dist: 0 };
-      
-      const wrist = landmarks[0];
-      const fingers = [4, 8, 12, 16, 20];
-      let avgDist = 0;
-      for (let i = 0; i < fingers.length; i++) {
-        const dx = landmarks[fingers[i]].x - wrist.x;
-        const dy = landmarks[fingers[i]].y - wrist.y;
-        avgDist += Math.sqrt(dx*dx + dy*dy);
-      }
-      avgDist /= fingers.length;
-      
-      const isPinch = avgDist < 0.12;
-      return { isPinching: isPinch, dist: avgDist };
-    }
-
-    // ----- ANALISIS GESTUR TANGAN KANAN -----
-    function analyzeRightHand(landmarks) {
-      if (!landmarks || landmarks.length === 0) return { mode: 'none', fingerCount: 0, rot: 0 };
-
-      const fingerCount = countFingers(landmarks);
-      const wrist = landmarks[0];
-      const midTip = landmarks[12];
-      const dx = midTip.x - wrist.x;
-      const dy = midTip.y - wrist.y;
-      let rot = Math.atan2(dy, dx);
-      const fist = isFist(landmarks);
-
-      let mode = 'open';
-      if (fist) {
-        mode = 'fist';
-      } else if (fingerCount === 1) {
-        mode = 'one';
-      } else if (fingerCount === 2) {
-        mode = 'two';
-      } else if (fingerCount === 3) {
-        mode = 'three';
-      } else {
-        mode = 'open';
-      }
-
-      return { mode, fingerCount, rot, isFist: fist };
-    }
-
-    // ----- DRAW GAMBAR DI POJOK KANAN ATAS + ROTATE -----
-    function drawShape(gesture, rot, zoom) {
-      if (gesture === 'fist') {
-        animVisible = false;
-        return;
-      }
-      animVisible = true;
-
-      // POSISI TETAP DI POJOK KANAN ATAS
-      const w = canvasEl.width;
-      const h = canvasEl.height;
-      const cx = w * 0.78;
-      const cy = h * 0.22;
-
-      let size = 180 * zoom;
-      if (gesture === 'open') size = 220 * zoom;
-      else if (gesture === 'one') size = 160 * zoom;
-      else if (gesture === 'two') size = 190 * zoom;
-      else if (gesture === 'three') size = 200 * zoom;
-
-      // ROTASI dari tangan
-      const angle = rot + Math.PI/2;
-
+// ============================================================
+// DRAW PUZZLE PIECES
+// ============================================================
+function drawPieces() {
+  puzzlePieces.forEach(p => {
+    if (p.placed) {
+      // Highlight
       ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-
-      // GLOW
-      const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 1.8);
-      grad.addColorStop(0, 'rgba(255,200,230,0.15)');
-      grad.addColorStop(0.5, 'rgba(200,150,255,0.05)');
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(0, 0, size * 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      const s = size * 0.5;
-      ctx.shadowBlur = 40;
-      ctx.shadowColor = 'rgba(255,200,230,0.3)';
-      ctx.lineWidth = 2.5;
-
-      // --- GAMBAR BERBEDA SETIAP GESTURE ---
-      if (gesture === 'open') {
-        // BUNGA MAWAR / ROSE
-        const petals = 12;
-        ctx.strokeStyle = '#ff6b8a';
-        ctx.fillStyle = 'rgba(255,107,138,0.15)';
-        ctx.beginPath();
-        for (let i = 0; i < petals * 2; i++) {
-          const r = i % 2 === 0 ? s : s * 0.3;
-          const ang = (i / (petals * 2)) * Math.PI * 2 + frameCount * 0.003;
-          const px = Math.cos(ang) * r;
-          const py = Math.sin(ang) * r;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Lapisan kedua
-        ctx.strokeStyle = '#ff4080';
-        ctx.fillStyle = 'rgba(255,64,128,0.1)';
-        ctx.lineWidth = 1.5;
-        const s2 = s * 0.6;
-        ctx.beginPath();
-        for (let i = 0; i < 8 * 2; i++) {
-          const r = i % 2 === 0 ? s2 : s2 * 0.2;
-          const ang = (i / (8 * 2)) * Math.PI * 2 - frameCount * 0.002;
-          const px = Math.cos(ang) * r;
-          const py = Math.sin(ang) * r;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Pusat bunga
-        ctx.shadowBlur = 60;
-        ctx.fillStyle = '#ffd700';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.15, 0, Math.PI * 2);
-        ctx.fill();
-
-      } else if (gesture === 'one') {
-        // KUPU-KUPU / BUTTERFLY
-        ctx.strokeStyle = '#ff8c00';
-        ctx.fillStyle = 'rgba(255,140,0,0.12)';
-        ctx.lineWidth = 2;
-        
-        // Sayap kiri
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(-s * 0.8, -s * 0.7, -s * 0.5, -s * 0.1);
-        ctx.quadraticCurveTo(-s * 0.9, s * 0.1, -s * 0.3, s * 0.3);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Sayap kanan
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(s * 0.8, -s * 0.7, s * 0.5, -s * 0.1);
-        ctx.quadraticCurveTo(s * 0.9, s * 0.1, s * 0.3, s * 0.3);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Sayap bawah
-        ctx.fillStyle = 'rgba(255,140,0,0.08)';
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(-s * 0.4, s * 0.4, -s * 0.2, s * 0.7);
-        ctx.quadraticCurveTo(0, s * 0.8, s * 0.2, s * 0.7);
-        ctx.quadraticCurveTo(s * 0.4, s * 0.4, 0, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Body
-        ctx.shadowBlur = 20;
-        ctx.fillStyle = '#ff6b00';
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 4, s * 0.25, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Antena
-        ctx.strokeStyle = '#ff8c00';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-3, -s * 0.15);
-        ctx.quadraticCurveTo(-s * 0.15, -s * 0.4, -s * 0.1, -s * 0.5);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(3, -s * 0.15);
-        ctx.quadraticCurveTo(s * 0.15, -s * 0.4, s * 0.1, -s * 0.5);
-        ctx.stroke();
-
-      } else if (gesture === 'two') {
-        // GALAKSI / SPIRAL
-        ctx.strokeStyle = '#9b59b6';
-        ctx.fillStyle = 'rgba(155,89,182,0.08)';
-        ctx.lineWidth = 2;
-        
-        // Spiral
-        for (let i = 0; i < 3; i++) {
-          ctx.beginPath();
-          for (let t = 0; t < 1; t += 0.01) {
-            const ang = t * Math.PI * 6 + i * 1.5 + frameCount * 0.005;
-            const rad = s * t * 0.8;
-            const px = Math.cos(ang) * rad;
-            const py = Math.sin(ang) * rad;
-            if (t === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          }
-          ctx.stroke();
-        }
-
-        // Bintang-bintang
-        ctx.shadowBlur = 30;
-        for (let i = 0; i < 20; i++) {
-          const ang = Math.random() * Math.PI * 2;
-          const rad = Math.random() * s * 0.8;
-          const px = Math.cos(ang) * rad;
-          const py = Math.sin(ang) * rad;
-          const size = 2 + Math.random() * 4;
-          ctx.fillStyle = `hsl(${280 + Math.random() * 40}, 100%, ${70 + Math.random() * 30}%)`;
-          ctx.beginPath();
-          for (let j = 0; j < 4 * 2; j++) {
-            const r = j % 2 === 0 ? size : size * 0.3;
-            const a = (j / (4 * 2)) * Math.PI * 2 + Math.random();
-            if (j === 0) ctx.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r);
-            else ctx.lineTo(px + Math.cos(a) * r, py + Math.sin(a) * r);
-          }
-          ctx.closePath();
-          ctx.fill();
-        }
-
-        // Pusat galaksi
-        ctx.shadowBlur = 80;
-        ctx.fillStyle = '#e8d5f5';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-
-      } else if (gesture === 'three') {
-        // KRISTAL / DIAMOND
-        ctx.strokeStyle = '#00bcd4';
-        ctx.fillStyle = 'rgba(0,188,212,0.1)';
-        ctx.lineWidth = 2.5;
-        
-        // Kristal utama
-        const points = 6;
-        ctx.beginPath();
-        for (let i = 0; i < points * 2; i++) {
-          const r = i % 2 === 0 ? s : s * 0.4;
-          const ang = (i / (points * 2)) * Math.PI * 2 + frameCount * 0.002;
-          const px = Math.cos(ang) * r;
-          const py = Math.sin(ang) * r;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Kristal dalam
-        ctx.strokeStyle = '#4dd0e1';
-        ctx.fillStyle = 'rgba(77,208,225,0.06)';
-        ctx.lineWidth = 1.5;
-        const s2 = s * 0.6;
-        ctx.beginPath();
-        for (let i = 0; i < 8 * 2; i++) {
-          const r = i % 2 === 0 ? s2 : s2 * 0.3;
-          const ang = (i / (8 * 2)) * Math.PI * 2 - frameCount * 0.003;
-          const px = Math.cos(ang) * r;
-          const py = Math.sin(ang) * r;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Sinar
-        ctx.shadowBlur = 30;
-        for (let i = 0; i < 6; i++) {
-          const ang = (i / 6) * Math.PI * 2 + frameCount * 0.01;
-          ctx.strokeStyle = `rgba(0,188,212,${0.15 + Math.sin(frameCount * 0.02 + i) * 0.05})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(ang) * s * 0.2, Math.sin(ang) * s * 0.2);
-          ctx.lineTo(Math.cos(ang) * s * 0.9, Math.sin(ang) * s * 0.9);
-          ctx.stroke();
-        }
-
-        // Pusat
-        ctx.shadowBlur = 60;
-        ctx.fillStyle = '#e0f7fa';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.shadowBlur = 0;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'rgba(0,255,200,0.2)';
+      ctx.strokeStyle = 'rgba(0,255,200,0.3)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(p.x * W - p.w*W/2, p.y * H - p.h*H/2, p.w*W, p.h*H);
       ctx.restore();
     }
+    
+    const img = new Image();
+    img.src = p.image;
+    ctx.save();
+    ctx.globalAlpha = p.placed ? 0.9 : 0.85;
+    ctx.shadowBlur = p.placed ? 10 : 30;
+    ctx.shadowColor = 'rgba(255,255,255,0.1)';
+    ctx.drawImage(img, p.x * W - p.w*W/2, p.y * H - p.h*H/2, p.w*W, p.h*H);
+    ctx.restore();
+  });
+}
 
-    // ----- MEDIAPIPE RESULTS -----
-    function onResults(results) {
-      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-
-      let rightHand = null;
-      let leftHand = null;
-
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        for (let i = 0; i < results.multiHandLandmarks.length && i < 2; i++) {
-          const lm = results.multiHandLandmarks[i];
-          if (i === 0) rightHand = lm;
-          else if (i === 1) leftHand = lm;
-        }
-      }
-
-      // Proses tangan kanan
-      if (rightHand) {
-        const gesture = analyzeRightHand(rightHand);
-        gestureMode = gesture.mode;
-        currentRotation = gesture.rot || 0;
-
-        // Proses tangan kiri untuk ZOOM (pinch)
-        let zoom = zoomLevel;
-        if (leftHand) {
-          const pinchData = detectPinch(leftHand);
-          
-          if (pinchData.isPinching) {
-            if (!isPinching) {
-              isPinching = true;
-              prevPinchDist = pinchData.dist;
-            } else {
-              const delta = pinchData.dist - prevPinchDist;
-              zoom = Math.max(0.3, Math.min(3.0, zoomLevel + delta * 15));
-              zoomLevel = zoom;
-              prevPinchDist = pinchData.dist;
-            }
-          } else {
-            isPinching = false;
-            prevPinchDist = 0;
-          }
-        }
-
-        // STATUS & DRAW
-        let statusText = '';
-        if (gesture.mode === 'fist') {
-          statusText = '✊ kepalan · HILANG';
-          animVisible = false;
-        } else {
-          animVisible = true;
-          if (gesture.mode === 'one') statusText = '☝️ 1 jari · KUPU-KUPU';
-          else if (gesture.mode === 'two') statusText = '✌️ 2 jari · GALAKSI';
-          else if (gesture.mode === 'three') statusText = '🖖 3 jari · KRISTAL';
-          else statusText = '🖐️ terbuka · BUNGA MAWAR';
-          if (leftHand) {
-            if (isPinching) statusText += ' | zoom: ' + zoom.toFixed(2);
-            else statusText += ' | pinch untuk zoom';
-          }
-          statusText += ' | putar tangan ↻';
-          
-          drawShape(gesture.mode, gesture.rot || 0, zoom);
-        }
-        statusEl.textContent = statusText;
-
-      } else {
-        statusEl.textContent = '✧ tunjukkan tangan kananmu ✧';
-        // Tampilkan animasi default di pojok jika tidak ada tangan
-        if (animVisible) {
-          drawShape('open', 0, zoomLevel);
-        }
-      }
-
-      frameCount++;
+// ============================================================
+// MEDIAPIPE RESULTS
+// ============================================================
+function onResults(results) {
+  ctx.clearRect(0, 0, W, H);
+  
+  // Draw video background
+  if (results.image) {
+    ctx.drawImage(results.image, 0, 0, W, H);
+  }
+  
+  let rightHand = null;
+  let leftHand = null;
+  
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    for (let i = 0; i < results.multiHandLandmarks.length && i < 2; i++) {
+      if (i === 0) rightHand = results.multiHandLandmarks[i];
+      else if (i === 1) leftHand = results.multiHandLandmarks[i];
     }
-
-    // ----- MEDIAPIPE INIT -----
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-    hands.setOptions({
-      maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.6
-    });
-    hands.onResults(onResults);
-
-    // LOOP DETECTION
-    async function detectLoop() {
-      try {
-        if (videoEl.readyState >= 2) {
-          await hands.send({ image: videoEl });
-        }
-      } catch (e) {}
-      requestAnimationFrame(detectLoop);
+  }
+  
+  // DETEKSI FRAME (2 tangan pinch)
+  const rightPinch = rightHand ? isPinch(rightHand) : false;
+  const leftPinch = leftHand ? isPinch(leftHand) : false;
+  
+  if (rightPinch && leftPinch && rightHand && leftHand) {
+    const rCenter = getHandCenter(rightHand);
+    const lCenter = getHandCenter(leftHand);
+    
+    const x = Math.min(rCenter.x, lCenter.x) * W;
+    const y = Math.min(rCenter.y, lCenter.y) * H;
+    const w = Math.abs(rCenter.x - lCenter.x) * W;
+    const h = Math.abs(rCenter.y - lCenter.y) * H;
+    
+    if (w > 30 && h > 30) {
+      frameBox = { x, y, w, h };
+      drawFrameBox(frameBox);
+      statusEl.textContent = '📐 frame siap! · lepas pinch untuk capture';
     }
+  } else {
+    // Cek apakah frame sudah dibuat dan tidak ada pinch → capture
+    if (frameBox && !rightPinch && !leftPinch && !isCapturing && puzzleCount < 3) {
+      captureFrame();
+    }
+    frameBox = null;
+  }
+  
+  // DRAG PUZZLE (dengan 1 tangan pinch)
+  if (rightHand && isPinch(rightHand) && puzzlePieces.length > 0) {
+    const center = getHandCenter(rightHand);
+    handleDrag({ x: center.x * W, y: center.y * H }, true);
+  } else if (dragPiece) {
+    handleDrag({ x: 0, y: 0 }, false);
+  }
+  
+  // Draw pieces
+  drawPieces();
+  
+  // Draw frame points
+  if (frameBox) {
+    drawFrameBox(frameBox);
+  }
+  
+  // Status update
+  if (!frameBox && puzzleCount < 3 && !isCapturing) {
+    if (!rightHand || !leftHand) {
+      statusEl.textContent = '✧ gunakan 2 tangan untuk bikin frame ✧';
+    }
+  }
+}
 
-    setTimeout(() => detectLoop(), 1000);
-  })();
+// ============================================================
+// INIT MEDIAPIPE
+// ============================================================
+const hands = new Hands({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+hands.setOptions({
+  maxNumHands: 2,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.6
+});
+hands.onResults(onResults);
+
+// LOOP DETECTION
+async function detectLoop() {
+  try {
+    if (video.readyState >= 2) {
+      await hands.send({ image: video });
+    }
+  } catch (e) {}
+  requestAnimationFrame(detectLoop);
+}
+
+setTimeout(detectLoop, 1000);
+
+// ============================================================
+// KEYBOARD SHORTCUT (buat testing)
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'c' || e.key === 'C') {
+    if (frameBox) captureFrame();
+  }
+  if (e.key === 'r' || e.key === 'R') resetAll();
+});
 </script>
 </body>
 </html>
